@@ -18,26 +18,7 @@ on:
         required: false
         type: string
         default: .
-      install-command:
-        description: Optional install command. Defaults by package manager.
-        required: false
-        type: string
-        default: ""
-      build-command:
-        description: Build command to run.
-        required: false
-        type: string
-        default: npm run build --if-present
-      test-command:
-        description: Test command to run.
-        required: false
-        type: string
-        default: npm test --if-present
-      pre-build-command:
-        description: Optional command to run before install/build/test.
-        required: false
-        type: string
-        default: ""
+     
 
 jobs:
   build:
@@ -46,12 +27,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        if: inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,38 +39,15 @@ jobs:
             ${{ inputs.working-directory }}/yarn.lock
             ${{ inputs.working-directory }}/pnpm-lock.yaml
 
-      - name: Enable Corepack
+      - name: Npm Install
+        id: npm-install
         shell: bash
-        run: corepack enable
-
-      - name: Run pre-build command
-        if: inputs.pre-build-command != ''
-        shell: bash
-        working-directory: ${{ inputs.working-directory }}
-        run: ${{ inputs.pre-build-command }}
-
-      - name: Install dependencies
-        shell: bash
-        working-directory: ${{ inputs.working-directory }}
         run: |
-          if [ -n "${{ inputs.install-command }}" ]; then
-            ${{ inputs.install-command }}
-          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then
-            yarn install --immutable || yarn install --frozen-lockfile
-          elif [ "${{ inputs.package-manager }}" = "pnpm" ]; then
-            pnpm install --frozen-lockfile
-          elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
+          echo running pre-build command : npm ci --verbose
+           npm ci --verbose
       - name: Build
+        id: build
         shell: bash
-        working-directory: ${{ inputs.working-directory }}
-        run: ${{ inputs.build-command }}
-
-      - name: Test
-        shell: bash
-        working-directory: ${{ inputs.working-directory }}
-        run: ${{ inputs.test-command }}
+        run: |
+          echo running build command : npm run build --if-present
+          npm run build --if-present
