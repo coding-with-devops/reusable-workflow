@@ -1,0 +1,11 @@
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.idea/
+.vscode/
+
+# Temporary files
+*.log
+tmp/
+temp/
