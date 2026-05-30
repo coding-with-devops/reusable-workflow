@@ -1,0 +1,83 @@
+name: Reusable Python Build
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use.
+        required: false
+        type: string
+        default: "3.12"
+      working-directory:
+        description: Directory containing the Python project.
+        required: false
+        type: string
+        default: .
+      requirements-file:
+        description: Requirements file path relative to working-directory.
+        required: false
+        type: string
+        default: requirements.txt
+      install-command:
+        description: Optional additional install command.
+        required: false
+        type: string
+        default: ""
+      lint-command:
+        description: Optional lint command.
+        required: false
+        type: string
+        default: ""
+      test-command:
+        description: Test command to run.
+        required: false
+        type: string
+        default: pytest
+      pre-build-command:
+        description: Optional command to run before install/lint/test.
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Python Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+
+      - name: Run pre-build command
+        if: inputs.pre-build-command != ''
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.pre-build-command }}
+
+      - name: Install dependencies
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "${{ inputs.requirements-file }}" ]; then
+            pip install -r "${{ inputs.requirements-file }}"
+          fi
+          if [ -n "${{ inputs.install-command }}" ]; then
+            ${{ inputs.install-command }}
+          fi
+
+      - name: Lint
+        if: inputs.lint-command != ''
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.lint-command }}
+
+      - name: Test
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.test-command }}

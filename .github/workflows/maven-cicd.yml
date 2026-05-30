@@ -1,0 +1,56 @@
+name: Reusable Maven Build
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: Java version to use.
+        required: false
+        type: string
+        default: "17"
+      distribution:
+        description: Java distribution for actions/setup-java.
+        required: false
+        type: string
+        default: temurin
+      working-directory:
+        description: Directory containing the Maven project.
+        required: false
+        type: string
+        default: .
+      maven-command:
+        description: Maven command to run.
+        required: false
+        type: string
+        default: mvn -B verify
+      pre-build-command:
+        description: Optional command to run before Maven.
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Maven Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.distribution }}
+          java-version: ${{ inputs.java-version }}
+          cache: maven
+
+      - name: Run pre-build command
+        if: inputs.pre-build-command != ''
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.pre-build-command }}
+
+      - name: Build and test
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.maven-command }}

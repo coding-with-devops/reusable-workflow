@@ -1,0 +1,95 @@
+name: Setup Build
+description: Shared setup action for reusable Node.js, Python, Maven, and Docker workflows.
+
+inputs:
+  checkout:
+    description: Whether to check out the repository.
+    required: false
+    default: "true"
+  language:
+    description: Build language or toolchain. Supported values are node, python, maven, docker, none.
+    required: false
+    default: none
+  node-version:
+    description: Node.js version when language is node.
+    required: false
+    default: "20"
+  package-manager:
+    description: Node package manager. Supported values are npm, yarn, pnpm.
+    required: false
+    default: npm
+  python-version:
+    description: Python version when language is python.
+    required: false
+    default: "3.12"
+  java-version:
+    description: Java version when language is maven.
+    required: false
+    default: "17"
+  java-distribution:
+    description: Java distribution when language is maven.
+    required: false
+    default: temurin
+  working-directory:
+    description: Directory where optional setup commands run.
+    required: false
+    default: .
+  pre-build-command:
+    description: Optional command to run after setup and before the caller build steps.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      if: inputs.checkout == 'true'
+      uses: actions/checkout@v4
+
+    - name: Setup pnpm
+      if: inputs.language == 'node' && inputs.package-manager == 'pnpm'
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+
+    - name: Setup Node.js
+      if: inputs.language == 'node'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+        cache-dependency-path: |
+          ${{ inputs.working-directory }}/package-lock.json
+          ${{ inputs.working-directory }}/npm-shrinkwrap.json
+          ${{ inputs.working-directory }}/yarn.lock
+          ${{ inputs.working-directory }}/pnpm-lock.yaml
+
+    - name: Enable Corepack
+      if: inputs.language == 'node'
+      shell: bash
+      run: corepack enable
+
+    - name: Setup Python
+      if: inputs.language == 'python'
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Setup Java
+      if: inputs.language == 'maven'
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ inputs.java-distribution }}
+        java-version: ${{ inputs.java-version }}
+        cache: maven
+
+    - name: Setup Docker Buildx
+      if: inputs.language == 'docker'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Run pre-build command
+      if: inputs.pre-build-command != ''
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.pre-build-command }}
