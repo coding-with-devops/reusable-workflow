@@ -149,3 +149,149 @@ uses: your-org/reusable-workflow-repo/.github/workflows/maven-build.yml@v1.0.0
 ```
 
 Use `main` only when callers intentionally want the latest workflow changes.
+
+
+# Reusable Terraform GitHub Actions Workflow
+
+Create this file in the shared workflow repository:
+
+`.github/workflows/terraform.yml`
+
+```yaml
+name: Reusable Terraform
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing Terraform configuration.
+        required: false
+        type: string
+        default: .
+      terraform-version:
+        description: Terraform CLI version or version constraint.
+        required: false
+        type: string
+        default: 1.9.8
+      run-apply:
+        description: Run terraform apply after plan.
+        required: false
+        type: boolean
+        default: false
+      plan-artifact-name:
+        description: Name for uploaded Terraform plan artifact.
+        required: false
+        type: string
+        default: terraform-plan
+    secrets:
+      AWS_ROLE_TO_ASSUME:
+        required: false
+      AWS_REGION:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.plan-artifact-name }}
+          path: ${{ inputs.working-directory }}/tfplan
+          if-no-files-found: error
+
+      - name: Terraform apply
+        if: ${{ inputs.run-apply }}
+        run: terraform apply -input=false -auto-approve tfplan
+```
+
+## Caller Workflow
+
+Create this file in each Terraform repository:
+
+`.github/workflows/terraform.yml`
+
+```yaml
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - infra/**
+      - .github/workflows/terraform.yml
+  push:
+    branches:
+      - main
+    paths:
+      - infra/**
+      - .github/workflows/terraform.yml
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Run terraform apply.
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  terraform:
+    uses: ORG/SHARED-WORKFLOWS-REPO/.github/workflows/terraform.yml@main
+    with:
+      working-directory: infra
+      terraform-version: 1.9.8
+      run-apply: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.apply) }}
+      plan-artifact-name: terraform-plan-${{ github.run_id }}
+    secrets:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+```
+
+Replace `ORG/SHARED-WORKFLOWS-REPO` with the repository that stores the reusable workflow.
+
+## Notes
+
+- Put environment-specific backend config in the Terraform code or pass it through additional workflow inputs.
+- Prefer OIDC with `AWS_ROLE_TO_ASSUME` instead of long-lived cloud keys.
+- Keep `run-apply` false for pull requests. Apply should normally happen only on protected branches or manual dispatch.
+- If you use Azure or GCP, swap the AWS credentials step for the relevant login action and secrets.
