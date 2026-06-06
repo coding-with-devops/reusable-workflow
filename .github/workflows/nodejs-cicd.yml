@@ -35,10 +35,7 @@ jobs:
           cache: ${{ inputs.package-manager }}
           cache-dependency-path: |
             ${{ inputs.working-directory }}/package-lock.json
-            ${{ inputs.working-directory }}/npm-shrinkwrap.json
-            ${{ inputs.working-directory }}/yarn.lock
-            ${{ inputs.working-directory }}/pnpm-lock.yaml
-
+      
       - name: Npm Install
         id: npm-install
         shell: bash
