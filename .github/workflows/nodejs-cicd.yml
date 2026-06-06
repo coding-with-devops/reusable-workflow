@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           echo running pre-build command : npm ci --verbose
-           npm ci --verbose
+          npm ci --verbose
       - name: Build
         id: build
         shell: bash
