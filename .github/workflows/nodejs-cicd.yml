@@ -35,7 +35,7 @@ jobs:
           #cache: ${{ inputs.package-manager }}
           #cache-dependency-path: |
           #  ${{ inputs.working-directory }}/package-lock.json
-      - run: npm ci
+      #- run: npm ci
       - name: Install Dependencies
         run: npm install --no-package-lock
       - name : npm build
