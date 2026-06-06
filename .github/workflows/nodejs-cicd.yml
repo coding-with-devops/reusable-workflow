@@ -35,16 +35,11 @@ jobs:
           #cache: ${{ inputs.package-manager }}
           #cache-dependency-path: |
           #  ${{ inputs.working-directory }}/package-lock.json
-      
-      - name: Npm Install
-        id: npm-install
-        shell: bash
+      - run: npm ci
+      - name: Install Dependencies
+        run: npm install --no-package-lock
+      - name : npm build
+        run: npm run build
+      - name: Check Directory
         run: |
-          echo running pre-build command : npm ci --verbose
-          npm ci --verbose
-      - name: Build
-        id: build
-        shell: bash
-        run: |
-          echo running build command : npm run build --if-present
-          npm run build --if-present
+            ls -ltrh
